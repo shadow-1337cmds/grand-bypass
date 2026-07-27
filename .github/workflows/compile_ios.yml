@@ -16,7 +16,7 @@ jobs:
           bypass.m -o bypass.dylib
 
       - name: Upload Compiled Dylib
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: GrandBypass-Dylib
           path: bypass.dylib
