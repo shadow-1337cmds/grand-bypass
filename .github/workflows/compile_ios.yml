@@ -1,0 +1,22 @@
+name: Compile iOS Dylib
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Compile Tweak to dylib
+        run: |
+          clang -dynamiclib -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
+          -arch arm64 -miphoneos-version-min=15.0 \
+          -framework Foundation \
+          bypass.m -o bypass.dylib
+
+      - name: Upload Compiled Dylib
+        uses: actions/upload-artifact@v3
+        with:
+          name: GrandBypass-Dylib
+          path: bypass.dylib
