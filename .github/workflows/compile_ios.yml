@@ -1,22 +1,25 @@
-name: Compile iOS Dylib
-on: [push, workflow_dispatch]
+#import <Foundation/Foundation.h>
+#import <sys/sysctl.h>
+#import <unistd.h>
 
-jobs:
-  build:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+// Перехват getppid (обман проверки родительского процесса)
+pid_t fake_getppid(void) {
+    return 1; 
+}
 
-      - name: Compile Tweak to dylib
-        run: |
-          clang -dynamiclib -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-          -arch arm64 -miphoneos-version-min=15.0 \
-          -framework Foundation \
-          bypass.m -o bypass.dylib
+// Перехват sysctl (обман детекта отладки)
+int fake_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen) {
+    if (namelen >= 4 && name[0] == CTL_KERN && name[1] == KERN_PROC && name[2] == KERN_PROC_PID) {
+        int res = sysctl(name, namelen, oldp, oldlenp, newp, newlen);
+        if (res == 0 && oldp && *oldlenp >= sizeof(struct kinfo_proc)) {
+            struct kinfo_proc *kp = (struct kinfo_proc *)oldp;
+            kp->kp_proc.p_flag &= ~P_TRACED;
+        }
+        return res;
+    }
+    return sysctl(name, namelen, oldp, oldlenp, newp, newlen);
+}
 
-      - name: Upload Compiled Dylib
-        uses: actions/upload-artifact@v4
-        with:
-          name: GrandBypass-Dylib
-          path: bypass.dylib
+__attribute__((constructor)) static void init() {
+    NSLog(@"[GrandBypass] Твик успешно загружен! Отключаем проверки...");
+}
